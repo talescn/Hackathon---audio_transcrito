@@ -5,10 +5,6 @@ from scipy.io.wavfile import write
 from dotenv import load_dotenv
 import assemblyai as aai
 import google.generativeai as genai
-import sounddevice as sd
-import numpy as np
-from scipy.io.wavfile import write
-import time
 
 # Carregar variáveis de ambiente
 load_dotenv()
@@ -17,38 +13,13 @@ load_dotenv()
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-def gravar_audio_dinamico(fs=16000, output="audio.wav", threshold=100, max_silence_duration=3):
-    print("🎙️ Aguarde... escutando para iniciar gravação")
-
-    buffer = []
-    silence_start = None
-    gravando = False
-    bloco_tamanho = int(0.5 * fs)  # 0.5 segundo de áudio por bloco
-
-    with sd.InputStream(samplerate=fs, channels=1) as stream:
-        while True:
-            bloco, _ = stream.read(bloco_tamanho)
-            bloco = bloco.flatten()
-            energia = np.sqrt(np.mean(bloco**2)) * 1000
-
-            if energia > threshold:
-                if not gravando:
-                    print("🎤 Iniciando gravação...")
-                    gravando = True
-                buffer.append(bloco)
-                silence_start = None  # resetar contador de silêncio
-            else:
-                if gravando:
-                    if silence_start is None:
-                        silence_start = time.time()
-                    elif time.time() - silence_start >= max_silence_duration:
-                        print("🛑 Silêncio detectado. Encerrando gravação.")
-                        break
-
-    # Salvar áudio
-    audio_final = np.concatenate(buffer)
-    audio_final = np.int16(audio_final * 32767)
-    write(output, fs, audio_final)
+# Grava áudio e salva como .wav
+def gravar_audio(duration=5, fs=16000, output="audio.wav"):
+    print("🎙️ Gravando... fale agora")
+    audio = sd.rec(int(duration * fs), samplerate=fs, channels=1)
+    sd.wait()
+    audio = np.int16(audio * 32767)
+    write(output, fs, audio)
     print(f"✅ Áudio gravado como {output}")
 
 # Transcreve o áudio usando a AssemblyAI com idioma português
@@ -79,5 +50,8 @@ def obter_sugestao_com_gemini(texto_transcrito):
     print("💡 Sugestão de continuação:", sugestao)
     return sugestao
 
-gravar_audio_dinamico()
-
+# Fluxo principal
+if __name__ == "__main__":
+    gravar_audio(duration=5)
+    texto = transcrever_audio_assemblyai("audio.wav")
+    obter_sugestao_com_gemini(texto)
