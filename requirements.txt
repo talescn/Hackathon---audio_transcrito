@@ -1,0 +1,6 @@
+numpy
+sounddevice
+scipy
+python-dotenv
+assemblyai
+google-generativeai
